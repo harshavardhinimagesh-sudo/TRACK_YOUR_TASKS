@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TO DO LIST SCHEDULE</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background: #f4f4f4;
+        text-align: center;
+    }
+
+    .box {
+        width: 240px;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 2px 2px 5px #ccc;
+        margin: auto;
+        text-align: left;
+    }
+
+    input {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 10px;
+    }
+
+    button {
+        padding: 8px 12px;
+        background: #007bff;
+        border: none;
+        color: white;
+        cursor: pointer;
+        border-radius: 5px;
+        width: 100%;
+    }
+
+    ul {
+        list-style: none;
+        padding: 0;
+        margin-top: 10px;
+    }
+
+    li {
+        background: #fff;
+        padding: 8px;
+        margin-bottom: 6px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+        font-size: 14px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 4px;
+        font-weight: bold;
+        font-size: 14px;
+    }
+
+    .chart-container {
+        margin-top: 30px;
+        display: flex;
+        justify-content: center;
+    }
+
+    canvas {
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+</style>
+</head>
+
+<body>
+
+<h2>TO DO LIST SCHEDULE</h2>
+
+<div class="box">
+    <h3>Add Task</h3>
+
+    <input type="text" id="taskName" placeholder="Task Name">
+
+    <label for="startTime">Start Time</label>
+    <input type="time" id="startTime">
+
+    <label for="endTime">End Time</label>
+    <input type="time" id="endTime">
+
+    <button onclick="addTask()">Add Task</button>
+
+    <ul id="taskList"></ul>
+</div>
+
+<div class="chart-container">
+    <canvas id="pieChart" width="400" height="400"></canvas>
+</div>
+
+<script>
+let tasks = [];
+let chart;
+
+function minutesBetween(start, end) {
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+
+    let startMin = sh * 60 + sm;
+    let endMin = eh * 60 + em;
+
+    if (endMin < startMin) endMin += 24 * 60; 
+    return endMin - startMin;
+}
+
+function addTask() {
+    const name = document.getElementById("taskName").value.trim();
+    const start = document.getElementById("startTime").value;
+    const end = document.getElementById("endTime").value;
+
+    if (!name || !start || !end) return;
+
+    const duration = minutesBetween(start, end);
+
+    tasks.push({ name, start, end, duration });
+
+    const li = document.createElement("li");
+    li.textContent = `${name} — ${duration} minutes (Start: ${start}, End: ${end})`;
+    document.getElementById("taskList").appendChild(li);
+
+    document.getElementById("taskName").value = "";
+    document.getElementById("startTime").value = "";
+    document.getElementById("endTime").value = "";
+
+    updateChart();
+}
+
+function updateChart() {
+    const labels = tasks.map(t => t.name);
+    const data = tasks.map(t => t.duration);
+
+    if (chart) {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = data;
+        chart.update();
+        return;
+    }
+
+    const ctx = document.getElementById("pieChart").getContext("2d");
+
+    chart = new Chart(ctx, {
+        type: "pie",
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: ["#ff6384", "#36a2eb", "#ffce56", "#8aff80", "#ffa780"]
+            }]
+        },
+        options: {
+            responsive: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+</script>
+
+</body>
+</html>
+

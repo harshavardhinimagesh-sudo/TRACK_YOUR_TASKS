@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Team Task Manager + Start/End Times + Bar Chart</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+    .class1 { background: white; padding: 20px; max-width: 520px; margin: auto; border-radius: 10px;
+             box-shadow: 2px 2px 3px rgb(217,202,202); }
+    h2 { text-align:center; margin: 0 0 12px 0; }
+    input, select, button { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc;
+                             border-radius: 5px; font-size: 16px; box-sizing: border-box; }
+    button { background: #007bff; color: #fff; border: none; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .task-box { margin-top: 16px; padding: 10px; background: #fafafa; border-radius: 5px;
+                border: 1px solid #ddd; }
+    .sub-title { margin-top: 12px; font-weight: bold; font-size: 16px; }
+    #charts { max-width: 900px; margin: 30px auto 80px; text-align: center; }
+    canvas { background: #fff; border-radius: 8px; margin-top: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .row { display:flex; gap:10px; }
+    .col { flex:1; }
+    label.small { font-size: 13px; color:#444; display:block; margin-bottom:4px; }
+    .muted { font-size:13px;color:#666;margin-top:6px;}
+  </style>
+</head>
+<body>
+
+  <div class="class1">
+    <h2>Team Task Manager</h2>
+
+    <p class="sub-title">Add Team Member</p>
+    <input id="newMember" type="text" placeholder="Enter member name" />
+    <button onclick="addMember()">Add Member</button>
+
+    <hr>
+
+    <select id="username">
+      <option value="" disabled selected>Select User</option>
+    </select>
+
+    <input id="taskName" type="text" placeholder="Task Name" />
+
+    <div class="row">
+      <div class="col">
+        <label class="small">Start Time</label>
+        <input id="taskStart" type="time" />
+      </div>
+      <div class="col">
+        <label class="small">End Time</label>
+        <input id="taskEnd" type="time" />
+      </div>
+    </div>
+
+    <button onclick="addTask()">Add Task</button>
+
+    <div id="taskListContainer"></div>
+    <p class="muted">Note: If end time is earlier than start, it's treated as next day (cross-midnight).</p>
+  </div>
+
+  <div id="charts">
+    <h2>Bar Chart (Durations)</h2>
+    <!-- Single-user: per-task bars. Multi-user: per-user total bars -->
+    <canvas id="barChart" width="820" height="360"></canvas>
+  </div>
+
+<script>
+  // store tasks per user
+  let userTasks = {};
+
+  function addMember() {
+    const member = document.getElementById('newMember').value.trim();
+    const dropdown = document.getElementById('username');
+    if (!member) return;
+    // prevent duplicate options
+    for (let i=0;i<dropdown.options.length;i++){
+      if (dropdown.options[i].value === member) {
+        document.getElementById('newMember').value = '';
+        return;
+      }
+    }
+    const option = document.createElement('option');
+    option.value = member;
+    option.textContent = member;
+    dropdown.appendChild(option);
+    document.getElementById('newMember').value = '';
+  }
+
+  function parseTimeToMinutes(t) {
+    // t like "HH:MM" — returns minutes since 00:00
+    if (!t) return null;
+    const [hh,mm] = t.split(':').map(Number);
+    return hh*60 + mm;
+  }
+
+  function formatTime(t) {
+    // t is "HH:MM" string or null
+    return t ? t : '-';
+  }
+
+  function minutesToHhMm(mins) {
+    if (mins == null || isNaN(mins)) return '-';
+    const h = Math.floor(mins/60);
+    const m = Math.round(mins%60);
+    return (h>0? h + 'h ':'') + m + 'm';
+  }
+
+  function addTask() {
+    const user = document.getElementById('username').value;
+    const task = document.getElementById('taskName').value.trim();
+    const start = document.getElementById('taskStart').value;
+    const end = document.getElementById('taskEnd').value;
+
+    if (!user || !task || !start || !end) {
+      // simple guard: require all fields
+      alert('Please select user, task name, start and end times.');
+      return;
+    }
+
+    const startMin = parseTimeToMinutes(start);
+    const endMin = parseTimeToMinutes(end);
+
+    // handle crossing midnight: if end <= start, assume next day
+    let duration;
+    if (endMin >= startMin) {
+      duration = endMin - startMin;
+    } else {
+      duration = (24*60 - startMin) + endMin;
+    }
+
+    if (!userTasks[user]) userTasks[user] = [];
+    userTasks[user].push({
+      task: task,
+      start: start,
+      end: end,
+      duration: duration  // in minutes
+    });
+
+    // reset inputs
+    document.getElementById('taskName').value = '';
+    document.getElementById('taskStart').value = '';
+    document.getElementById('taskEnd').value = '';
+
+    displayTasks();
+    drawBarChart();
+  }
+
+  function displayTasks() {
+    const container = document.getElementById('taskListContainer');
+    container.innerHTML = '';
+
+    for (let user in userTasks) {
+      const box = document.createElement('div');
+      box.className = 'task-box';
+
+      const title = document.createElement('h3');
+      title.textContent = 'Tasks for ' + user;
+      box.appendChild(title);
+
+      userTasks[user].forEach((t, idx) => {
+        const p = document.createElement('p');
+        p.innerHTML = `<strong>${t.task}</strong> — ${formatTime(t.start)} → ${formatTime(t.end)} 
+                       (${minutesToHhMm(t.duration)})`;
+        // add delete button per task
+        const del = document.createElement('button');
+        del.style.marginLeft = '8px';
+        del.style.padding = '4px 8px';
+        del.style.fontSize = '13px';
+        del.textContent = 'Delete';
+        del.onclick = () => { userTasks[user].splice(idx,1); if(userTasks[user].length===0) delete userTasks[user]; displayTasks(); drawBarChart(); };
+        p.appendChild(del);
+
+        box.appendChild(p);
+      });
+
+      container.appendChild(box);
+    }
+  }
+
+  function clearCanvas(ctx, canvas) {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+
+  // BAR CHART: if one user -> one bar per task; if multiple -> one bar per user (total durations)
+  function drawBarChart() {
+    const canvas = document.getElementById('barChart');
+    const ctx = canvas.getContext('2d');
+    clearCanvas(ctx, canvas);
+
+    const users = Object.keys(userTasks);
+    if (users.length === 0) {
+      ctx.fillStyle = '#333';
+      ctx.font = '16px Arial';
+      ctx.fillText('No tasks yet — add members and tasks to see the chart', 20, 40);
+      return;
+    }
+
+    // chart drawing parameters
+    const chartTop = 40;
+    const chartLeft = 60;
+    const chartWidth = canvas.width - chartLeft - 40;
+    const chartHeight = canvas.height - chartTop - 80;
+
+    // prepare data
+    if (users.length === 1) {
+      // single user: show each task as a bar
+      const user = users[0];
+      const tasks = userTasks[user];
+      const labels = tasks.map(t => t.task);
+      const values = tasks.map(t => t.duration); // minutes
+
+      if (values.length === 0) {
+        ctx.fillStyle = '#333';
+        ctx.font = '16px Arial';
+        ctx.fillText('No tasks for ' + user, 20, 40);
+        return;
+      }
+
+      const maxVal = Math.max(...values);
+      const barGap = 20;
+      const barWidth = Math.max(20, (chartWidth - barGap*(values.length+1)) / values.length);
+
+      // axes + labels
+      ctx.strokeStyle = '#444';
+      ctx.beginPath();
+      ctx.moveTo(chartLeft, chartTop);
+      ctx.lineTo(chartLeft, chartTop + chartHeight);
+      ctx.lineTo(chartLeft + chartWidth + 10, chartTop + chartHeight);
+      ctx.stroke();
+
+      ctx.font = '13px Arial';
+      ctx.fillStyle = '#000';
+      ctx.fillText('Task (single user) — durations in minutes', chartLeft, 18);
+
+      // draw bars
+      let x = chartLeft + barGap;
+      for (let i=0;i<values.length;i++) {
+        const h = (values[i] / maxVal) * (chartHeight - 20);
+        // random color for each bar
+        const color = "#" + Math.floor(Math.random()*16777215).toString(16);
+        ctx.fillStyle = color;
+        ctx.fillRect(x, chartTop + chartHeight - h, barWidth, h);
+
+        // value on top
+        ctx.fillStyle = '#000';
+        ctx.font = '12px Arial';
+        ctx.fillText(values[i] + 'm', x + (barWidth/2) - 10, chartTop + chartHeight - h - 6);
+
+        // label (rotated a little)
+        ctx.save();
+        ctx.translate(x + barWidth/2, chartTop + chartHeight + 14);
+        ctx.rotate(-0.25);
+        ctx.font = '12px Arial';
+        ctx.fillText(labels[i], - (labels[i].length>12?12*6:labels[i].length*6) / 2, 0);
+        ctx.restore();
+
+        x += barWidth + barGap;
+      }
+
+      // footer: user name and total
+      const total = values.reduce((s,a)=>s+a,0);
+      ctx.fillStyle = '#333';
+      ctx.font = '13px Arial';
+      ctx.fillText('User: ' + user + ' — Total ' + minutesToHhMm(total), chartLeft, chartTop + chartHeight + 46);
+
+    } else {
+      // multiple users: total duration per user
+      const labels = users;
+      const values = users.map(u => userTasks[u].reduce((s,t)=>s + t.duration, 0));
+      const maxVal = Math.max(...values);
+
+      const barGap = 30;
+      const barWidth = Math.max(30, (chartWidth - barGap*(values.length+1)) / values.length);
+
+      // draw axes
+      ctx.strokeStyle = '#444';
+      ctx.beginPath();
+      ctx.moveTo(chartLeft, chartTop);
+      ctx.lineTo(chartLeft, chartTop + chartHeight);
+      ctx.lineTo(chartLeft + chartWidth + 10, chartTop + chartHeight);
+      ctx.stroke();
+
+      ctx.font = '13px Arial';
+      ctx.fillStyle = '#000';
+      ctx.fillText('Users — total durations (minutes)', chartLeft, 18);
+
+      // bars
+      let x = chartLeft + barGap;
+      for (let i=0;i<values.length;i++) {
+        const h = (values[i] / maxVal) * (chartHeight - 20);
+        const color = "#" + Math.floor(Math.random()*16777215).toString(16);
+        ctx.fillStyle = color;
+        ctx.fillRect(x, chartTop + chartHeight - h, barWidth, h);
+
+        // value label
+        ctx.fillStyle = '#000';
+        ctx.font = '12px Arial';
+        ctx.fillText(values[i] + 'm', x + (barWidth/2) - 12, chartTop + chartHeight - h - 6);
+
+        // user label
+        ctx.save();
+        ctx.translate(x + barWidth/2, chartTop + chartHeight + 16);
+        ctx.rotate(-0.2);
+        ctx.font = '12px Arial';
+        ctx.fillText(labels[i], - (labels[i].length>12?12*6:labels[i].length*6) / 2, 0);
+        ctx.restore();
+
+        x += barWidth + barGap;
+      }
+
+      // totals footer
+      const grandTotal = values.reduce((s,a)=>s+a,0);
+      ctx.fillStyle = '#333';
+      ctx.font = '13px Arial';
+      ctx.fillText('All users total: ' + minutesToHhMm(grandTotal), chartLeft, chartTop + chartHeight + 46);
+    }
+  }
+
+  // initial draw
+  drawBarChart();
+</script>
+
+</body>
+</html>
