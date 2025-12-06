@@ -120,7 +120,7 @@
     const startMin = parseTimeToMinutes(start);
     const endMin = parseTimeToMinutes(end);
 
-    // handle crossing midnight: if end <= start, assume next day
+ 
     let duration;
     if (endMin >= startMin) {
       duration = endMin - startMin;
@@ -136,7 +136,7 @@
       duration: duration  // in minutes
     });
 
-    // reset inputs
+  
     document.getElementById('taskName').value = '';
     document.getElementById('taskStart').value = '';
     document.getElementById('taskEnd').value = '';
@@ -195,15 +195,15 @@
       return;
     }
 
-    // chart drawing parameters
+   
     const chartTop = 40;
     const chartLeft = 60;
     const chartWidth = canvas.width - chartLeft - 40;
     const chartHeight = canvas.height - chartTop - 80;
 
-    // prepare data
+
     if (users.length === 1) {
-      // single user: show each task as a bar
+      
       const user = users[0];
       const tasks = userTasks[user];
       const labels = tasks.map(t => t.task);
@@ -220,7 +220,7 @@
       const barGap = 20;
       const barWidth = Math.max(20, (chartWidth - barGap*(values.length+1)) / values.length);
 
-      // axes + labels
+     
       ctx.strokeStyle = '#444';
       ctx.beginPath();
       ctx.moveTo(chartLeft, chartTop);
@@ -232,11 +232,11 @@
       ctx.fillStyle = '#000';
       ctx.fillText('Task (single user) — durations in minutes', chartLeft, 18);
 
-      // draw bars
+     
       let x = chartLeft + barGap;
       for (let i=0;i<values.length;i++) {
         const h = (values[i] / maxVal) * (chartHeight - 20);
-        // random color for each bar
+      
         const color = "#" + Math.floor(Math.random()*16777215).toString(16);
         ctx.fillStyle = color;
         ctx.fillRect(x, chartTop + chartHeight - h, barWidth, h);
@@ -257,14 +257,14 @@
         x += barWidth + barGap;
       }
 
-      // footer: user name and total
+     
       const total = values.reduce((s,a)=>s+a,0);
       ctx.fillStyle = '#333';
       ctx.font = '13px Arial';
       ctx.fillText('User: ' + user + ' — Total ' + minutesToHhMm(total), chartLeft, chartTop + chartHeight + 46);
 
     } else {
-      // multiple users: total duration per user
+      
       const labels = users;
       const values = users.map(u => userTasks[u].reduce((s,t)=>s + t.duration, 0));
       const maxVal = Math.max(...values);
@@ -272,7 +272,7 @@
       const barGap = 30;
       const barWidth = Math.max(30, (chartWidth - barGap*(values.length+1)) / values.length);
 
-      // draw axes
+     
       ctx.strokeStyle = '#444';
       ctx.beginPath();
       ctx.moveTo(chartLeft, chartTop);
@@ -284,7 +284,7 @@
       ctx.fillStyle = '#000';
       ctx.fillText('Users — total durations (minutes)', chartLeft, 18);
 
-      // bars
+     
       let x = chartLeft + barGap;
       for (let i=0;i<values.length;i++) {
         const h = (values[i] / maxVal) * (chartHeight - 20);
@@ -292,12 +292,11 @@
         ctx.fillStyle = color;
         ctx.fillRect(x, chartTop + chartHeight - h, barWidth, h);
 
-        // value label
         ctx.fillStyle = '#000';
         ctx.font = '12px Arial';
         ctx.fillText(values[i] + 'm', x + (barWidth/2) - 12, chartTop + chartHeight - h - 6);
 
-        // user label
+        
         ctx.save();
         ctx.translate(x + barWidth/2, chartTop + chartHeight + 16);
         ctx.rotate(-0.2);
@@ -308,7 +307,7 @@
         x += barWidth + barGap;
       }
 
-      // totals footer
+     
       const grandTotal = values.reduce((s,a)=>s+a,0);
       ctx.fillStyle = '#333';
       ctx.font = '13px Arial';
@@ -316,9 +315,10 @@
     }
   }
 
-  // initial draw
+
   drawBarChart();
 </script>
 
 </body>
 </html>
+
